@@ -84,19 +84,16 @@ class DiversityTests(object):
         print '---------------------------------------------------------------\n'
         print 'Measures Results'
         print '---------------------------------------------------------------\n'
-        
         methods = [method for method in dir(self) if callable(getattr(self, method)) and 'get_' in method]
-        print methods
         for method in methods:
             method_run = getattr(self, method)
             method_run()
             print '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - \n'
-        return  
-        
-    
+        return
+
     def help(self):
+
         """Just a helper function to print the class docstring."""
-        
         return self.__doc__
 
 def Pairwise_Tests(y_a, y_b, y_true, name_1, name_2, p=0.05, print_cont = False):
@@ -123,55 +120,47 @@ def Pairwise_Tests(y_a, y_b, y_true, name_1, name_2, p=0.05, print_cont = False)
             @ b_given_a: Conditional Probability of classifier b predicting 
                          correctly the correctly predicted, by a, instances
     """
-    
     from numpy import zeros
     from pandas import DataFrame
     from scipy.stats import chi2
     from math import sqrt
-    
-    
-    
-    tresh = chi2.ppf(q = 1-p, # Find the critical value for 95% confidence*
-                      df = 1)   # Df = number of variable categories - 1
-    
-    table_scores = numpy.zeros([2,2], dtype=float)  # 2x2 McNemart Oracle Table
-    counts_a = 0 # correct classifier a predictions
-    counts_b = 0 # correct classifier b predictions
+
+    tresh = chi2.ppf(q=1 - p,  # Find the critical value for 95% confidence*
+                     df=1)   # Df = number of variable categories - 1
+
+    table_scores = zeros([2, 2], dtype=float)  # 2x2 McNemar Oracle Table
+    counts_a = 0  # correct classifier a predictions
+    counts_b = 0  # correct classifier b predictions
     for i, y in enumerate(y_true):
         if y == y_a[i]:
-            counts_a +=1
+            counts_a += 1
             if y == y_b[i]:
-                counts_b +=1
-                table_scores[0,0] += 1  # both a and b correct
+                counts_b += 1
+                table_scores[0, 0] += 1  # both a and b correct
             else:
-                table_scores[0,1] += 1 # a correct, b wrong
+                table_scores[0, 1] += 1  # a correct, b wrong
         else:
             if y == y_b[i]:
-                counts_b +=1
-                table_scores[1,0] += 1 # b wrong, a correct
-            else:  
-                table_scores[1,1] += 1 # a, b both wrong
-    b_given_a = table_scores[0,0]/float(counts_a)
-    a_given_b = table_scores[0,0]/float(counts_b)
-    
-    if table_scores[0,1]+table_scores[1,0] == 0: # can't find chi2
+                counts_b += 1
+                table_scores[1, 0] += 1  # b wrong, a correct
+            else:
+                table_scores[1, 1] += 1  # a, b both wrong
+    b_given_a = table_scores[0, 0] / float(counts_a)
+    a_given_b = table_scores[0, 0] / float(counts_b)
+    if table_scores[0, 1] + table_scores[1, 0] == 0:  # can't find chi2
         chi_squared_value = 0
-    else: # calcualate chi2 value if possible
-        chi_squared_value = pow(abs(table_scores[0,1]-table_scores[1,0])-1,2)/float(table_scores[0,1]+table_scores[1,0])
-    
+    else:  # calcualate chi2 value if possible
+        chi_squared_value = pow(abs(table_scores[0, 1] - table_scores[1, 0]) - 1, 2) / float(table_scores[0, 1] + table_scores[1, 0])
     # Correlation between predictions
     correlation = (table_scores[0,0]*table_scores[1,1]-table_scores[0,1]*table_scores[1,0])/float(sqrt((table_scores[0,0]*table_scores[0,1])*(table_scores[1,0]*table_scores[1,1])*(table_scores[0,0]*table_scores[1,0])*(table_scores[0,1]*table_scores[1,1]) ))
-    
     # Q statistic
     q_statistic = (table_scores[0,0]*table_scores[1,1]-table_scores[0,1]*table_scores[1,0])/float(table_scores[0,0]*table_scores[1,1]+table_scores[0,1]*table_scores[1,0])
-    
     # Interater Agreement of predictions
     cohens_k = (table_scores[0,0]*table_scores[1,0]-table_scores[0,1]*table_scores[1,1])/float((table_scores[0,0]*table_scores[0,1])*(table_scores[1,0]+table_scores[1,1])+(table_scores[0,0]+table_scores[1,0])*(table_scores[0,1] +table_scores[1,1]))
 
     # Turn absolute counts in percentages for McNemar Table printing
     table_scores /= float(len(y_true))
     table_scores *= 100
-    
     # Check for statistical independece according to chi2 test
     if chi_squared_value > tresh: 
         '!!! p=%0.2f Significant Difference: chi2-value %0.3f > %0.3f !!!' %(p, chi_squared_value, tresh)
@@ -208,7 +197,7 @@ def avg_pairwise(predictions, names, true):
     for i in xrange(len(predictions)):
         for j in range(i+1, len(predictions)): # for each pair
             num_pairs +=1
-            cor, q, k, _, _ = Pairwise_Tests(predictions[i], predictions[j], true, print_names[i], print_names[j])
+            cor, q, k, _, _ = Pairwise_Tests(predictions[i], predictions[j], true, names[i], names[j])
             if type(cor) is float: # check to avoid when cor is infinite
                 avg_metrics[0] += float(cor)
             avg_metrics[1] += q
@@ -235,3 +224,5 @@ def acc_cont_table(predictions, names, true, print_flag=True):
     if print_flag:
         print df.astype('float').to_string(float_format= lambda x: '%0.2f'%(x))
     return df
+
+
