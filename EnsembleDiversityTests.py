@@ -286,6 +286,15 @@ class BaseClassifiers(object):
             print "============================================================================"
         return
 
+    def get_mistakes_clustering(self):
+
+        mistakes_clustering(self.predictions, self.names, self.true)
+        return
+
+    def mistakes_clustering(predictions, names, true):
+
+        pass
+
 
     def help(self):
 
@@ -380,7 +389,7 @@ def comparison_report(predictions, names, true, print_flag=False):
 
         colors = ['rgba(38, 24, 74, 0.8)', 'rgba(71, 58, 131, 0.8)',
                   'rgba(122, 120, 168, 0.8)', 'rgba(164, 163, 204, 0.85)',
-                  'rgba(190, 192, 213, 1)']
+                  'rgba(190, 192, 213, 1)','rgba(190, 192, 213, 1)','rgba(190, 192, 213, 1)','rgba(190, 192, 213, 1)']
 
         x_data = count_others.T.tolist()[::-1]
 
@@ -514,13 +523,19 @@ def comparison_report(predictions, names, true, print_flag=False):
     N_wrong = df_not_correct.shape[0]
     counts = [all_wro*100/float(N)]
     for i in xrange(1,L):
+        #print i
         if not(df_not_correct[df_not_correct.sum(axis=1)==i].empty):
             if df_not_correct[df_not_correct.sum(axis=1)==i].shape[0] == 0:
-                counts.append(1*100/flaot(N))
+                counts.append(1*100/float(N))
             else:
                 counts.append(df_not_correct[df_not_correct.sum(axis=1)==i].shape[0]*100/float(N))
+        else:
+            counts.append(float(0))
+        #print counts
     non_corr_s = '%s : %0.2f  ||  ' % ('None Correct', counts[0])
+    #print len(counts)
     for i in xrange(1,L):
+        #print i
         non_corr_s +='%d correct : %0.2f  ||  ' % (i, counts[i])
     print 'Not all Correct Instances Distributions'
     print non_corr_s[:-4]
