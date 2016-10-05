@@ -295,11 +295,51 @@ class BaseClassifiers(object):
 
         pass
 
+    def get_per_class_accuracy(self):
+        print "Per Class Accuracy of the models"
+        per_class_accuracy(self.predictions, self.names, self.true)
+        return
+
 
     def help(self):
 
         """Just a helper function to print the class docstring."""
         return self.__doc__
+
+
+
+def per_class_accuracy(predictions, names, true):
+
+    from pandas import DataFrame
+    from numpy import array, hstack, zeros
+
+    Num_models = len(predictions)
+    labels = sorted(list(set(true)))
+    Num_samples = len(labels)
+    tmp = array(predictions[0]).reshape(-1,1)
+    for i in xrange(1, len(predictions)):
+        #print tmp
+        #print tmp.shape
+        #print array(predictions[i].reshape(-1,1))
+        #print array(predictions[i].reshape(-1,1)).shape
+        tmp = hstack((tmp, array(predictions[i].reshape(-1,1))))
+    tmp = hstack((tmp, array(true).reshape(-1,1)))
+    df = DataFrame(tmp, columns=names + ['true'])
+    counter = zeros([Num_models, len(labels)])
+    for i, name in enumerate(names):
+        df1 = df[df[name] == df['true']]
+        for j, label in enumerate(labels):
+            #print df1[df1['true'] == label].shape[0]
+            #print float(len([lab_ for lab_ in labels if lab_ == label]))
+            counter[i, j] = 100*df1[df1['true'] == label].shape[0] / float(len([lab_ for lab_ in true if lab_ == label]))
+    final_df = DataFrame(counter, columns = labels, index = names)
+    print final_df
+    return
+
+
+
+
+
 
 
 
@@ -384,12 +424,11 @@ def comparison_report(predictions, names, true, print_flag=False):
     print count_pd.astype('float').to_string(float_format= lambda x: '%0.2f'%(x))
     if print_flag:
         import plotly.graph_objs as go
+        from matplotlib.pyplot import cm
         
         top_labels = ['Only this Model']+ [' %d-model aggree' % i for i in xrange(1,L)]
 
-        colors = ['rgba(38, 24, 74, 0.8)', 'rgba(71, 58, 131, 0.8)',
-                  'rgba(122, 120, 168, 0.8)', 'rgba(164, 163, 204, 0.85)',
-                  'rgba(190, 192, 213, 1)','rgba(190, 192, 213, 1)','rgba(190, 192, 213, 1)','rgba(190, 192, 213, 1)']
+        colors = list(iter(cm.rainbow(numpy.linspace(0, 1, L))))
 
         x_data = count_others.T.tolist()[::-1]
 
