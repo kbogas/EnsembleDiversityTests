@@ -297,8 +297,13 @@ class BaseClassifiers(object):
 
     def get_per_class_accuracy(self):
         print "Per Class Accuracy of the models"
-        per_class_accuracy(self.predictions, self.names, self.true)
-        return
+        df = per_class_accuracy(self.predictions, self.names, self.true)
+        return df
+    
+    def get_per_class_f1(self):
+        print "Per Class Accuracy of the models"
+        df = per_class_f1(self.predictions, self.names, self.true)
+        return df
 
 
     def help(self):
@@ -334,7 +339,23 @@ def per_class_accuracy(predictions, names, true):
             counter[i, j] = 100*df1[df1['true'] == label].shape[0] / float(len([lab_ for lab_ in true if lab_ == label]))
     final_df = DataFrame(counter, columns = labels, index = names)
     print final_df
-    return
+    return final_df
+
+def per_class_f1(predictions, names, true):
+
+    from pandas import DataFrame
+    from numpy import array, hstack, zeros, vstack
+    from sklearn.metrics import f1_score
+
+    labels = sorted(list(set(true)))
+    counter = f1_score(predictions[0], true, average=None, labels=labels).reshape(1,-1)
+    print counter.shape
+    for i in xrange(1, len(predictions)):
+        counter = vstack((counter,f1_score(predictions[i], true, average=None, labels=labels).reshape(1,-1)))
+    print counter.shape
+    final_df = DataFrame(counter, columns = labels, index = names)
+    print final_df
+    return final_df
 
 
 

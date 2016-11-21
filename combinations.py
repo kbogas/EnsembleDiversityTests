@@ -1,5 +1,5 @@
 from sklearn.base import BaseEstimator, TransformerMixin
-
+from sklearn.metrics import accuracy_score, confusion_matrix,precision_recall_fscore_support, classification_report
 
 class Combinator(BaseEstimator, TransformerMixin):
     """ Static A posteriori Combinator of predictions.
@@ -234,7 +234,7 @@ class SubSpaceEnsemble4_2(BaseEstimator, TransformerMixin):
             for name, model in self.models.iteritems():
                 predictions.append(model.predict(X_cv))
                 # print len(predictions[-1])
-                transf = model.steps[0][1].transform(X_cv)
+                transf = model.steps[1][1].transform(X_cv)
                 if hasattr(transf, "toarray"):
                     # print 'Exei'
                     self.representations.append(transf.toarray())
@@ -302,7 +302,7 @@ class SubSpaceEnsemble4_2(BaseEstimator, TransformerMixin):
         possible_experts_sc = []
         for model_i in xrange(len(self.models.values())):
             # print 'Model: ' + self.ind2names[model_i]
-            temp_trans = self.models[self.ind2names[model_i]].steps[0][1].transform([x_sample])
+            temp_trans = self.models[self.ind2names[model_i]].steps[1][1].transform([x_sample])
             if hasattr(temp_trans, 'toarray'):
                 temp_trans = temp_trans.toarray()
             _, model_neig = self.trees[model_i].query(temp_trans, w[3])
@@ -373,7 +373,7 @@ class SubSpaceEnsemble4_2(BaseEstimator, TransformerMixin):
         possible_experts_sc = []
         for model_i in xrange(len(self.models.values())):
             # print 'Model: ' + self.ind2names[model_i]
-            temp_trans = self.models[self.ind2names[model_i]].steps[0][1].transform([x_sample])
+            temp_trans = self.models[self.ind2names[model_i]].steps[1][1].transform([x_sample])
             if hasattr(temp_trans, 'toarray'):
                 temp_trans = temp_trans.toarray()
             _, model_neig = self.trees[model_i].query(temp_trans, self.k)
@@ -414,3 +414,321 @@ class SubSpaceEnsemble4_2(BaseEstimator, TransformerMixin):
             # print 'Selected2 from base model: ' + self.ind2names[(acc.index(max(acc)))]
             # print self.models[self.ind2names[(acc.index(max(acc)))]].predict([x_sample])[0]
             return self.models[self.ind2names[(acc.index(max(acc)))]].predict([x_sample])[0]
+
+
+
+class Neigbors_DS(BaseEstimator, TransformerMixin):
+    
+    """ Best model base on the predictions of the k-nearest neighbors. Many different schemes.
+        Also, implements a common neighborhoud instead a per transformation one.
+        
+        Args:
+            - scheme: String flag. Can be one of the following:
+                - 'LCA': Local Class Accuracy
+                - 'OLA': Overall Local Accuracy
+                - 'KNE': K_Neighbors Elimination. Start from a k 
+                - 'optimal': The optimal weights are found, this
+                             is done by optimizing over the classification
+                             error
+                - weights: list or numpy.array(not sure?) containing as many
+                             weights as the models in the ensemble
+        Returns:
+            - The  ensemble Model. Needs to be fitted for the encoding part
+        
+        """
+
+    def __init__(self, models, models_tr, k= 5, scheme='LCA', common_neigh=False):
+
+        if (not models) or (not models_tr):
+            raise AttributeError('Models expexts a dictonary of models \
+              containg the predictions of y_true for each classifier.\
+              cv_score expects a list len(models.keys()) with the\
+              cross validation scores of each model')
+        else:
+            self.models = models
+            self.models_tr = models_tr
+            self.k = k
+            self.ind2names = {}
+            for i, name in enumerate(models.keys()):
+                self.ind2names[i] = name
+            self.predictions = {}
+            self.true = []
+            self.trees = {}
+            self.scheme = scheme
+            self.common_neigh = common_neigh
+            if common_neigh:
+                from sklearn.feature_extraction.text import CountVectorizer
+        
+                self.counter = CountVectorizer()
+                parameters = {
+                        'input': 'content',
+                        'encoding': 'utf-8',
+                        'decode_error': 'ignore',
+                        'analyzer': 'word',
+                        'stop_words': 'english',
+                        # 'vocabulary':list(voc),
+                        #'tokenizer': tokenization,
+                        #'tokenizer': _twokenize.tokenizeRawTweetText,  # self.tokenization,
+                        #'tokenizer': lambda text: _twokenize.tokenizeRawTweetText(nonan.sub(po_re.sub('', text))),
+                        'max_df': 1.0,
+                        'min_df': 1,
+                        'max_features':None
+                    }
+                self.counter.set_params(**parameters)
+                self.gt_tree = None
+            else:
+                self.counter = None
+            if self.scheme == 'LCA':
+                self.predictor = self.predict_lca
+            elif self.scheme == 'KNE':
+                self.predictor = self.predict_kne
+            elif self.scheme == 'OLA':
+                self.predictor = self.predict_ola
+            elif self.scheme == 'KNU':
+                self.predictor = self.predict_knu
+            else:
+                self.predictor = self.predict_ola
+                
+    def fit(self, X_cv, y_true=None, weights=None):
+        from sklearn.neighbors import BallTree
+        from sklearn.metrics import accuracy_score
+        import random
+        import time
+
+        if y_true is None:
+            raise ValueError('we need y labels to supervise-fit!')
+        else:
+            t0 = time.time()
+            predictions = []
+            for name, model in self.models.iteritems():
+                #predictions.append(model.predict(X_cv))
+                # print len(predictions[-1])
+                if self.common_neigh:
+                    X_tr = self.counter.fit_transform(X_cv)
+                    self.gt_tree = BallTree(X_tr.toarray(), leaf_size=20)
+                else:
+                    X_tr = self.models_tr[name].transform(X_cv)
+                    if hasattr(X_tr, "toarray"):
+                        self.trees[name] = BallTree(X_tr.toarray(), leaf_size=20)
+                    else:
+                        self.trees[name] = BallTree(X_tr, leaf_size=20)    
+                self.predictions[name] = model.predict(X_cv)
+            self.true = y_true
+            print 'Fitting time %0.2f' % (time.time() - t0)
+
+    def predict(self, X):
+        # import time
+
+        # print "PRedict"
+        # print X.shape
+        y_pred = []
+        # t0 = time.time()
+        for i, x in enumerate(X):
+            # print 'True Sample: ' + y_real[i]
+            y_pred.append(self.predictor(x))
+        # print('Predict took: %0.3f seconds') % (time.time()-t0)
+        return y_pred
+
+    def score(self, X, y, sample_weight=None):
+
+        from sklearn.metrics import accuracy_score
+        return accuracy_score(y, self.predict(X), normalize=True)
+        # return self.svc.score(self.transform_to_y(X), y, sample_weight)
+
+
+    def predict_lca(self, sample):
+        preds = []
+        for name, model in self.models.iteritems():
+            preds.append(model.predict([sample])[0])
+#         print 'Preds: ' + str(preds)
+        if len(set(preds))==1:
+#             print 'Unanimous Decision: ' + str(preds[0])
+#             print '='*50
+            return preds[0]
+        else:
+            lca = [0 for pred in preds]
+            model_ind = 0
+            for name, model in self.models.iteritems():
+                # print 'Model: ' + name
+                sample_trans = self.models_tr[name].transform([sample])
+                step = 50
+                found_k_class_n = self.k
+                neigh_indexes = []
+                while found_k_class_n>=0:
+                    if self.common_neigh:
+                        _, model_neig = self.gt_tree.query(self.counter.transform([sample]).toarray(), step)
+                    else:
+                        if hasattr(sample_trans, "toarray"):
+                            _, model_neig = self.trees[name].query(sample_trans.toarray(), step)
+                        else:
+                            _, model_neig = self.trees[name].query(sample_trans, step)
+                    for model_n_i in model_neig[0].tolist():
+                        if name == 'lsi':
+                            if self.true[model_n_i] != '35-49':
+                                pass
+                                # print 'GG'
+                        if preds[model_ind] == self.true[model_n_i]:
+                            neigh_indexes.append(model_n_i)
+                            found_k_class_n -= 1
+                    step *= 2
+                    if step >= len(self.predictions[name]):
+                        step = len(self.predictions[name])-1
+                neigh_indexes = neigh_indexes[:self.k] 
+                model_neig_pred = []
+                neigh_true = []
+                for model_n_i in neigh_indexes:
+                    model_neig_pred.append(self.predictions[name][model_n_i])
+                    neigh_true.append(self.true[model_n_i])
+                lca[model_ind] = accuracy_score(neigh_true, model_neig_pred, normalize=True)
+#                 print 'True Neigh: ' + str(neigh_true)
+#                 print 'Predicted Neigh: ' + str(model_neig_pred)
+                
+                model_ind += 1
+#             print 'LCA: %s' % str(['%0.2f' % (100*k) for k in lca])
+#             print "Total Predicted: %s from model %s" % (str(preds[lca.index(max(lca))]), self.models.keys()[lca.index(max(lca))])
+#             print '='*50
+            return preds[lca.index(max(lca))]
+
+
+    def predict_ola(self, sample):
+        preds = []
+        for name, model in self.models.iteritems():
+            preds.append(model.predict([sample])[0])
+#         print 'Preds: ' + str(preds)
+        if len(set(preds))==1:
+#             print 'Unanimous Decision: ' + str(preds[0])
+#             print '='*50
+            return preds[0]
+        else:
+            ola = [0 for pred in preds]
+            model_ind = 0
+            for name, model in self.models.iteritems():
+#                 print 'Model: ' + name
+                if self.common_neigh:
+                    _, model_neig = self.gt_tree.query(self.counter.transform([sample]).toarray(), self.k)
+                else:
+                    sample_trans = self.models_tr[name].transform([sample])
+                    if hasattr(sample_trans, "toarray"):
+                        _, model_neig = self.trees[name].query(sample_trans.toarray(), self.k)
+                    else:
+                        _, model_neig = self.trees[name].query(sample_trans, self.k)
+                model_neig_pred = []
+                neigh_true = []
+                for model_n_i in model_neig[0].tolist():
+                    model_neig_pred.append(self.predictions[name][model_n_i])
+                    neigh_true.append(self.true[model_n_i])
+                ola[model_ind] = accuracy_score(neigh_true, model_neig_pred, normalize=True)
+#                 print 'True Neigh: ' + str(neigh_true)
+#                 print 'Predicted Neigh: ' + str(model_neig_pred)
+#                 print 'OLA: %s' % str(['%0.2f' % (100*k) for k in ola])
+                model_ind += 1
+            
+#             print "Total Predicted: %s from model %s" % (str(preds[ola.index(max(ola))]), self.models.keys()[ola.index(max(ola))])
+#             print '='*50
+            return preds[ola.index(max(ola))]
+
+    def predict_kne(self, sample):
+        preds = []
+        for name, model in self.models.iteritems():
+            preds.append(model.predict([sample])[0])
+#         print 'Preds: ' + str(preds)
+        if len(set(preds))==1:
+#             print 'Unanimous Decision: ' + str(preds[0])
+#             print '='*50
+            return preds[0]
+        else:
+            k = self.k
+            possible_experts = []
+            neigh_radius = []
+            ola_scores = []
+            while k>0 :
+                model_ind = 0
+                # print k
+                for name, model in self.models.iteritems():
+#                     print 'Model: ' + name
+                    if self.common_neigh:
+                        _, model_neig = self.gt_tree.query(self.counter.transform([sample]).toarray(), k)
+                    else:
+                        sample_trans = self.models_tr[name].transform([sample])
+                        if hasattr(sample_trans, "toarray"):
+                            _, model_neig = self.trees[name].query(sample_trans.toarray(), k)
+                        else:
+                            _, model_neig = self.trees[name].query(sample_trans, k)
+                    model_neig_pred = []
+                    neigh_true = []
+                    for model_n_i in model_neig[0].tolist():
+                        model_neig_pred.append(self.predictions[name][model_n_i])
+                        neigh_true.append(self.true[model_n_i])
+#                     print 'True Neigh: ' + str(neigh_true)
+#                     print 'Predicted Neigh: ' + str(model_neig_pred)
+                    if k == self.k:
+                        ola_scores.append(accuracy_score(neigh_true, model_neig_pred, normalize=True))
+                    if neigh_true == model_neig_pred:
+                        possible_experts.append(preds[model_ind])
+                        neigh_radius.append(k)
+                    model_ind += 1
+                if not(possible_experts):
+                    k -= 1
+                else:
+                    break
+            if not(possible_experts):
+#                 print 'No experts'
+#                 print 'OLA_Scores: %s' % str(['%0.2f' % (100*k) for k in ola_scores])
+#                 print preds[ola_scores.index(max(ola_scores))]
+                return preds[ola_scores.index(max(ola_scores))]
+            else:
+#                 print 'Experts:'
+#                 print possible_experts
+#                 print neigh_radius
+                return possible_experts[0]
+            
+     
+    def predict_knu(self, sample):
+        
+
+        preds = []
+        for name, model in self.models.iteritems():
+            preds.append(model.predict([sample])[0])
+        #print 'Preds: ' + str(preds)
+        if len(set(preds))==1:
+#             print 'Unanimous Decision: ' + str(preds[0])
+#             print '='*50
+            return preds[0]
+        else:
+            possible_experts = []
+            neigh_radius = []
+            ola_scores = []
+            model_ind = 0
+            for name, model in self.models.iteritems():
+#                 print 'Model: ' + name
+                if self.common_neigh:
+                    _, model_neig = self.gt_tree.query(self.counter.transform([sample]).toarray(), self.k)
+                else:
+                    sample_trans = self.models_tr[name].transform([sample])
+                    if hasattr(sample_trans, "toarray"):
+                        _, model_neig = self.trees[name].query(sample_trans.toarray(), self.k)
+                    else:
+                        _, model_neig = self.trees[name].query(sample_trans, self.k)
+                model_neig_pred = []
+                neigh_true = []
+                for model_n_i in model_neig[0].tolist():
+                    model_neig_pred.append(self.predictions[name][model_n_i])
+                    neigh_true.append(self.true[model_n_i])
+                    if model_neig_pred[-1] == neigh_true[-1]:
+                        possible_experts.append(preds[model_ind])
+                ola_scores.append(accuracy_score(neigh_true, model_neig_pred, normalize=True))
+#                 print 'True Neigh: ' + str(neigh_true)
+#                 print 'Predicted Neigh: ' + str(model_neig_pred)
+        if not(possible_experts):
+#             print 'No experts'
+#             print 'OLA_Scores: %s' % str(['%0.2f' % (100*k) for k in ola_scores])
+#             print preds[ola_scores.index(max(ola_scores))]
+            return preds[ola_scores.index(max(ola_scores))]
+        else:
+#             print 'Experts:'
+#             print possible_experts
+#             print most_common(possible_experts)
+            return most_common(possible_experts)
+                        
+def most_common(lst):
+    return max(set(lst), key=lst.count)
