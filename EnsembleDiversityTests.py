@@ -267,7 +267,7 @@ class BaseClassifiers(object):
         if self.vis_flag:
             import plotly.plotly as py
 
-            py.iplot(fig)
+            # py.iplot(fig)
         return
 
     def get_classification_report(self):
@@ -293,7 +293,7 @@ class BaseClassifiers(object):
 
     def mistakes_clustering(predictions, names, true):
 
-        pass
+        raise NotImplementedError
 
     def get_per_class_accuracy(self):
         print "Per Class Accuracy of the models"
@@ -301,7 +301,7 @@ class BaseClassifiers(object):
         return df
     
     def get_per_class_f1(self):
-        print "Per Class Accuracy of the models"
+        print "Per Class F1 of the models"
         df = per_class_f1(self.predictions, self.names, self.true)
         return df
 
@@ -327,7 +327,7 @@ def per_class_accuracy(predictions, names, true):
         #print tmp.shape
         #print array(predictions[i].reshape(-1,1))
         #print array(predictions[i].reshape(-1,1)).shape
-        tmp = hstack((tmp, array(predictions[i].reshape(-1,1))))
+        tmp = hstack((tmp, array(predictions[i]).reshape(-1,1)))
     tmp = hstack((tmp, array(true).reshape(-1,1)))
     df = DataFrame(tmp, columns=names + ['true'])
     counter = zeros([Num_models, len(labels)])
@@ -453,13 +453,6 @@ def comparison_report(predictions, names, true, print_flag=False):
 
         x_data = count_others.T.tolist()[::-1]
 
-        #print x_data
-        y_data = ['The course was effectively<br>organized',
-                  'The course developed my<br>abilities and skills ' +
-                  'for<br>the subject', 'The course developed ' +
-                  'my<br>ability to think critically about<br>the subject',
-                  'I would recommend this<br>course to a friend']
-
         y_data = names[::-1]
         #print y_data
         #print top_labels
@@ -561,8 +554,8 @@ def comparison_report(predictions, names, true, print_flag=False):
         #py.image.ishow(fig)
 
     # Error Distributions
-    all_cor = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)]['3grams']==1)
-    all_wro = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)]['3grams']==0)
+    all_cor = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)][names[0]]==1)
+    all_wro = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)][names[0]]==0)
     disag = N - all_cor - all_wro
     print 'Predictions Distributions'
     print 'All correct : %0.2f  || Some correct : %0.2f || All wrong: %0.2f ' % \
