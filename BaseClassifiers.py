@@ -35,10 +35,103 @@ class BaseClassifiers(object):
 
         _, fig = comparison_report(self.predictions, self.names, self.true, self.vis_flag)
         if self.vis_flag:
-            import plotly.plotly as py
+            pass
+            #import plotly.plotly as py
 
-            py.iplot(fig)
+            #py.iplot(fig)
         return
+
+    def get_classification_report(self):
+
+        from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+        print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CLASSIFICATION RESULTS PER MODEL~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        for i, predict in enumerate(self.predictions):
+            print "============================ Model: %s ==================================+" % str(self.names[i])
+            acc = accuracy_score(self.true, predict)
+            conf = confusion_matrix(self.true, predict, labels=sorted(list(set(self.true))))
+            rep = classification_report(self.true, predict, target_names=sorted(list(set(self.true))))
+            print('Accuracy : {}'.format(acc))
+            print('Confusion matrix :\n {}'.format(conf))
+            print('Classification report :\n {}'.format(rep))
+            print "============================================================================"
+        return
+
+    def get_mistakes_clustering(self):
+
+        mistakes_clustering(self.predictions, self.names, self.true)
+        return
+
+    def mistakes_clustering(predictions, names, true):
+
+        pass
+
+    def get_per_class_accuracy(self):
+        print "Per Class Accuracy of the models"
+        df = per_class_accuracy(self.predictions, self.names, self.true)
+        return df
+    
+    def get_per_class_f1(self):
+        print "Per Class Accuracy of the models"
+        df = per_class_f1(self.predictions, self.names, self.true)
+        return df
+
+
+    def help(self):
+
+        """Just a helper function to print the class docstring."""
+        return self.__doc__
+
+
+
+def per_class_accuracy(predictions, names, true):
+
+    from pandas import DataFrame
+    from numpy import array, hstack, zeros
+
+    Num_models = len(predictions)
+    labels = sorted(list(set(true)))
+    Num_samples = len(labels)
+    tmp = array(predictions[0]).reshape(-1,1)
+    for i in xrange(1, len(predictions)):
+        #print tmp
+        #print tmp.shape
+        #print array(predictions[i].reshape(-1,1))
+        #print array(predictions[i].reshape(-1,1)).shape
+        tmp = hstack((tmp, array(predictions[i]).reshape(-1,1)))
+    tmp = hstack((tmp, array(true).reshape(-1,1)))
+    df = DataFrame(tmp, columns=names + ['true'])
+    counter = zeros([Num_models, len(labels)])
+    for i, name in enumerate(names):
+        df1 = df[df[name] == df['true']]
+        for j, label in enumerate(labels):
+            #print df1[df1['true'] == label].shape[0]
+            #print float(len([lab_ for lab_ in labels if lab_ == label]))
+            counter[i, j] = 100*df1[df1['true'] == label].shape[0] / float(len([lab_ for lab_ in true if lab_ == label]))
+    final_df = DataFrame(counter, columns = labels, index = names)
+    print final_df
+    return final_df
+
+def per_class_f1(predictions, names, true):
+
+    from pandas import DataFrame
+    from numpy import array, hstack, zeros, vstack
+    from sklearn.metrics import f1_score
+
+    labels = sorted(list(set(true)))
+    counter = f1_score(predictions[0], true, average=None, labels=labels).reshape(1,-1)
+    print counter.shape
+    for i in xrange(1, len(predictions)):
+        counter = vstack((counter,f1_score(predictions[i], true, average=None, labels=labels).reshape(1,-1)))
+    print counter.shape
+    final_df = DataFrame(counter, columns = labels, index = names)
+    print final_df
+    return final_df
+
+
+
+
+
 
 
 
@@ -122,11 +215,12 @@ def comparison_report(predictions, names, true, print_flag=False):
     print 'Models Correct Aggrement Percentages'
     print count_pd.astype('float').to_string(float_format= lambda x: '%0.2f'%(x))
     if print_flag:
+        import plotly.graph_objs as go
+        from matplotlib.pyplot import cm
+        
         top_labels = ['Only this Model']+ [' %d-model aggree' % i for i in xrange(1,L)]
 
-        colors = ['rgba(38, 24, 74, 0.8)', 'rgba(71, 58, 131, 0.8)',
-                  'rgba(122, 120, 168, 0.8)', 'rgba(164, 163, 204, 0.85)',
-                  'rgba(190, 192, 213, 1)']
+        colors = list(iter(cm.rainbow(numpy.linspace(0, 1, L))))
 
         x_data = count_others.T.tolist()[::-1]
 
@@ -230,7 +324,7 @@ def comparison_report(predictions, names, true, print_flag=False):
 
         layout['annotations'] = annotations
 
-        fig1 = go.Figure(data=traces, layout=layout)
+        #fig1 = go.Figure(data=traces, layout=layout)
         #py.iplot(fig,  filename='Results.png')
         #py.image.save_as(fig, filename='Results.png')
         #from IPython.display import Image
@@ -238,8 +332,8 @@ def comparison_report(predictions, names, true, print_flag=False):
         #py.image.ishow(fig)
 
     # Error Distributions
-    all_cor = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)]['3grams']==1)
-    all_wro = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)]['3grams']==0)
+    all_cor = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)][names[0]]==1)
+    all_wro = numpy.sum(df[df.apply(lambda x: min(x) == max(x), 1)][names[0]]==0)
     disag = N - all_cor - all_wro
     print 'Predictions Distributions'
     print 'All correct : %0.2f  || Some correct : %0.2f || All wrong: %0.2f ' % \
@@ -260,13 +354,19 @@ def comparison_report(predictions, names, true, print_flag=False):
     N_wrong = df_not_correct.shape[0]
     counts = [all_wro*100/float(N)]
     for i in xrange(1,L):
+        #print i
         if not(df_not_correct[df_not_correct.sum(axis=1)==i].empty):
             if df_not_correct[df_not_correct.sum(axis=1)==i].shape[0] == 0:
-                counts.append(1*100/flaot(N))
+                counts.append(1*100/float(N))
             else:
                 counts.append(df_not_correct[df_not_correct.sum(axis=1)==i].shape[0]*100/float(N))
+        else:
+            counts.append(float(0))
+        #print counts
     non_corr_s = '%s : %0.2f  ||  ' % ('None Correct', counts[0])
+    #print len(counts)
     for i in xrange(1,L):
+        #print i
         non_corr_s +='%d correct : %0.2f  ||  ' % (i, counts[i])
     print 'Not all Correct Instances Distributions'
     print non_corr_s[:-4]
