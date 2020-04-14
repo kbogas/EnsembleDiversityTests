@@ -97,11 +97,11 @@ class DiversityTests(object):
         return self.__doc__
 
 def Pairwise_Tests(y_a, y_b, y_true, name_1, name_2, p=0.05, print_cont = False):
-    
-    """ Method for calculating diversity measures of pairs of classifiers. 
+
+    """ Method for calculating diversity measures of pairs of classifiers.
         Also prints McNemar Contigency Table(if wanted) and calculates if
         there is statistical significant difference in results.
-    
+
        input:
             @ y_a : list of predictions for classifiear a
             @ y_b : list of predictions for classifiear b
@@ -110,14 +110,14 @@ def Pairwise_Tests(y_a, y_b, y_true, name_1, name_2, p=0.05, print_cont = False)
             @ name_2: name of classifier b
             @ p: 1-p=is confidence value for chi2 test
             @ print_cont: print McNemar table for oracle outputs between a,b
-       
+
        output:
             @ correlation: Phi coefficient
             @ q_statistic: Q-test coeff
             @ cohens_k: Interater agreement
-            @ a_given_b: Conditional Probability of classifier a predicting 
+            @ a_given_b: Conditional Probability of classifier a predicting
                          correctly the correctly predicted, by b, instances
-            @ b_given_a: Conditional Probability of classifier b predicting 
+            @ b_given_a: Conditional Probability of classifier b predicting
                          correctly the correctly predicted, by a, instances
     """
     from numpy import zeros
@@ -162,7 +162,7 @@ def Pairwise_Tests(y_a, y_b, y_true, name_1, name_2, p=0.05, print_cont = False)
     table_scores /= float(len(y_true))
     table_scores *= 100
     # Check for statistical independece according to chi2 test
-    if chi_squared_value > tresh: 
+    if chi_squared_value > tresh:
         '!!! p=%0.2f Significant Difference: chi2-value %0.3f > %0.3f !!!' %(p, chi_squared_value, tresh)
     if print_cont: # print McNemar Table test
         print 'Contigency Table: %s -%s' %(name_1, name_2)
@@ -174,7 +174,7 @@ def Pairwise_Tests(y_a, y_b, y_true, name_1, name_2, p=0.05, print_cont = False)
 
 
 def KW_Variance(predictions, y_true):
-    
+
     """Modification by Kuncheva et al. Expects a list of lists, containing predictions and a ground truth list."""
 
     correct_count = [0 for i in xrange(len(y_true))] # initialize correct counts per sample
@@ -186,16 +186,16 @@ def KW_Variance(predictions, y_true):
         final_score += correct_count[i]*(len(predictions)-correct_count[i]) # sum over all classifiers for this count
 
     return final_score/float(len(y_true)*pow(len(predictions),2))
-                
-    
+
+
 def avg_pairwise(predictions, names, true):
-    
+
     "Average of the pairwise metrics defined in PairWise Tests"
-    
+
     avg_metrics = [0,0,0] # Differente Metrics Initialization
     num_pairs = 0 # Normalization factor
     for i in xrange(len(predictions)):
-        for j in range(i+1, len(predictions)): # for each pair
+        for j in range(i, len(predictions)): # for each pair
             num_pairs +=1
             cor, q, k, _, _ = Pairwise_Tests(predictions[i], predictions[j], true, names[i], names[j])
             if type(cor) is float: # check to avoid when cor is infinite
@@ -203,17 +203,17 @@ def avg_pairwise(predictions, names, true):
             avg_metrics[1] += q
             avg_metrics[2] += k
     avg_metrics = [avg/float(num_pairs) for avg in avg_metrics] # normalize over all pairs
-    return avg_metrics    
+    return avg_metrics
 
 def acc_cont_table(predictions, names, true, print_flag=True):
-    
+
     """Create Conditional Accuracy Tables as in:
        Combining Information Extraction Systems Using Voting and Stacked Generalization
        by Sigletos et al, 2005"""
-    
+
     from numpy import eye
     from pandas import DataFrame
-    
+
     table = eye(len(predictions)) # table initilization
     for i in xrange(len(predictions)):
         for j in range(i+1, len(predictions)): # for each pair
@@ -299,7 +299,7 @@ class BaseClassifiers(object):
         print "Per Class Accuracy of the models"
         df = per_class_accuracy(self.predictions, self.names, self.true)
         return df
-    
+
     def get_per_class_f1(self):
         print "Per Class F1 of the models"
         df = per_class_f1(self.predictions, self.names, self.true)
@@ -370,7 +370,7 @@ def comparison_report(predictions, names, true, print_flag=False):
 
     import numpy, pandas
     import matplotlib.pyplot as plt
-    
+
     fig1 = None
     N = len(true)
     L = len(predictions)
@@ -381,7 +381,7 @@ def comparison_report(predictions, names, true, print_flag=False):
         correct[i, :] =  numpy.core.defchararray.equal(predictions[i], true)
         correct_per.append(numpy.sum(correct[i,:])/float(N))
     #print correct.shape
-    #print 
+    #print
     df = pandas.DataFrame(correct.T, columns = names)
     #print df.head(20)
     # Classifier Performance
@@ -393,7 +393,7 @@ def comparison_report(predictions, names, true, print_flag=False):
         acc_s += '%s : %0.2f  ||  ' % (name, acc[-1])
     acc_s = acc_s[:-4]
     print acc_s
-    
+
     if print_flag:
         fig, ax = plt.subplots()
         s = plt.bar([i for i in xrange(L)], acc, align='center', alpha=0.4)
@@ -428,7 +428,7 @@ def comparison_report(predictions, names, true, print_flag=False):
         #print df[df[name1]>0]
         for j in xrange(1, L):
             name2 = cyclic_names[j]
-            #print name2            
+            #print name2
             if not(tmp2[tmp2[name2]>0].empty):
                 if tmp2[tmp2[name2]>0].shape[0] == 0:
                      count_others[j, i] = 1*100/float(N_class)
@@ -446,7 +446,7 @@ def comparison_report(predictions, names, true, print_flag=False):
     if print_flag:
         import plotly.graph_objs as go
         from matplotlib.pyplot import cm
-        
+
         top_labels = ['Only this Model']+ [' %d-model aggree' % i for i in xrange(1,L)]
 
         colors = list(iter(cm.rainbow(numpy.linspace(0, 1, L))))
@@ -529,7 +529,7 @@ def comparison_report(predictions, names, true, print_flag=False):
             for i in range(1, len(xd)):
                     # labeling the rest of percentages for each bar (x_axis)
                     annotations.append(dict(xref='x', yref='y',
-                                            x=space + (xd[i]/2), y=yd, 
+                                            x=space + (xd[i]/2), y=yd,
                                             text='%0.2f ' % xd[i],
                                             font=dict(family='Arial', size=14,
                                                       color='rgb(248, 248, 255)'),
@@ -560,7 +560,7 @@ def comparison_report(predictions, names, true, print_flag=False):
     print 'Predictions Distributions'
     print 'All correct : %0.2f  || Some correct : %0.2f || All wrong: %0.2f ' % \
                       (100*all_cor/float(N), 100*disag/float(N), 100*all_wro/float(N) )
-    
+
     if print_flag:
 
         fig, ax = plt.subplots()
@@ -570,7 +570,7 @@ def comparison_report(predictions, names, true, print_flag=False):
         plt.title('Ensemble Decisions')
         autolabel(s.patches, ax)
         plt.show()
-    
+
     # Wrong Instances
     df_not_correct = df[df.sum(axis=1)!=L]
     N_wrong = df_not_correct.shape[0]

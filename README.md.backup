@@ -2,18 +2,18 @@
 ***
 ## Simple python implementations of Diversity Measures for Classifiers
 ***
-Measures mainly from
+Measures mainly from 
 - [**Combining Pattern Classifiers: Methods and Algorithms**, *Ludmila Kuncheva, 2004*](http://www.ccas.ru/voron/download/books/machlearn/kuncheva04combining.pdf)
-- Conditional Accuracy Table as in [**Combining Information Extraction Systems Using Voting
+- Conditional Accuracy Table as in [**Combining Information Extraction Systems Using Voting 
 and Stacked Generalization**, *Sigletos et al, 2005*](http://www.jmlr.org/papers/volume6/sigletos05a/sigletos05a.pdf)
 
 ## Python dependencies
 
 (May need sudo rights for the following installations)
 
-1. Install _pip_
+1. Install _pip_ 
 ```sh
-apt-get install python-pip
+apt-get install python-pip 
 ```
 2. Install  needed python modules trhough _pip_
 
@@ -61,27 +61,22 @@ Measures Results
 
 ['get_KWVariance', 'get_avg_pairwise', 'get_conditional_acc_table']
 #####  Kohovi-Wolpert Variance:  0.222  #####
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 #### Pairwise Average Metrics: #####
 Avg. Cor: 0.000
 Avg. Q-statistic: nan
 Avg. Cohen's k: 0.000
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 ###Conditional Accuracy Table###
      a    b    c
-a  nan 0.00 0.00
+a 1.00 0.00 0.00
 b  nan 1.00 0.00
 c  nan 0.00 1.00
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 ```
-**Remark**:
-In the Conditioanl Accuracy Table
-- *nan*: would denote that the column system does not make any correct prediction at all
-- 0 value: would denote that the row system's correct predictions never overlap with the columns systems correct predictions.
-
 
 #### Args for DiversityTests:
 - @predictions: list of lists. Each sublist contains the predictions
