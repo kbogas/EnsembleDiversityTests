@@ -77,6 +77,28 @@ c  nan 0.00 1.00
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 ```
+Another example on the same inputs:
+```python
+from BaseLearnerDiversity.EnsembleDiversityTests import BaseClassifiers
+base_C_test =  BaseClassifiers(predictions_test, names, truth)
+DM = base_C_test.get_difficulty_measures()
+```
+Will produce:
+```python
+Base Accuracies
+a : 0.00  ||  b : 66.67  ||  c : 33.33  
+Models Correct Aggrement Percentages
+   Only this Model   1-model aggree   2-model aggree
+a             0.00             0.00             0.00
+b            66.67             0.00             0.00
+c            33.33             0.00             0.00
+Predictions Distributions
+All correct : 0.00  || Some correct : 100.00 || All wrong: 0.00 
+Not all Correct Instances Distributions
+None Correct : 0.00  ||  1 correct : 100.00  ||  2 correct : 0.00  
+Measure of difficulty: 	0.027777777777777783 
+
+```
 **Remark**:
 In the Conditioanl Accuracy Table
 - *nan*: would denote that the column system does not make any correct prediction at all
